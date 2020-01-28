@@ -14,11 +14,12 @@ public class GhostController : MonoBehaviour
     {
         try
         {
+            Destroy(gameObject, .2f);
+
             ControllScript.GetInstance().DeRegisterGhost(this);
         }
         catch (System.Exception e)
         {
-
         }
     }
     public float GetDistance()
