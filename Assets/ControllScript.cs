@@ -10,6 +10,7 @@ public class ControllScript : MonoBehaviour {
 
     void Start() {
         for (int i = 0; i < 200; i++) {
+            Ghostspawner.position = new Vector3(Random.Range(-49.0f, 49.0f), 0.5f, Random.Range(-100.0f, 100.0f));
             CreateGhost(Ghostspawner);
         }
     }
@@ -47,6 +48,18 @@ public class ControllScript : MonoBehaviour {
         }
     }
 
+    public void KillOutOfMapGhosts() {
+        foreach (GhostController ghost in ghosts) {
+            float x = ghost.GetPosition().x;
+            float z = ghost.GetPosition().y;
+            if (x < -48.6f || x > 48.6f || z < -105f || z > 105f) {
+                //Debug.Log("Killing ghostie--- X : "+x+" Z : "+z);
+                Destroy(ghost);
+                Ghostspawner.position = new Vector3(Random.Range(-49.0f, 49.0f), 0.5f, Random.Range(-100.0f, 100.0f));
+                CreateGhost(Ghostspawner);
+            }
+        }
+    }
 
     private void CreateGhost(Transform trans) {
         Instantiate(Ghost, trans.position, trans.rotation);
