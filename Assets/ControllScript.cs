@@ -39,11 +39,11 @@ public class ControllScript : MonoBehaviour {
 
             // abbruchbedingung
             //
-            // if (CheckLocations()) {
-            //     Debug.Log("final!");
-            //     robot.CompareLocations(particleFilter[0].Item1.GetPosition(), particleFilter[0].Item1.GetRotation());
-            //     return;
-            // }
+            if (CheckLocations()) {
+                Debug.Log("final!");
+                robot.CompareLocations(particleFilter[0].Item1.GetPosition(), particleFilter[0].Item1.GetRotation());
+                return;
+            }
             // Debug.Log(robot.Scan());
             
             robotReady = false;
@@ -156,14 +156,22 @@ public class ControllScript : MonoBehaviour {
             sumZ += ghost.GetPosition().z;
         }
 
-        float meanX = sumX / this.ghosts.Count;
-        float meanY = sumZ / this.ghosts.Count;
+        float meanX = sumX / ghosts.Count;
+        float meanY = sumZ / ghosts.Count;
 
 
-        Debug.Log("AbbruchWert: " + meanX + meanY);
+        float sumQuadratX = 0;
+        float sumQuadratY = 0;
+        foreach (var ghost in ghosts) {
+            sumQuadratX += Mathf.Pow(ghost.GetPosition().x - meanX, 2);
+            sumQuadratY += Mathf.Pow(ghost.GetPosition().y - meanY, 2);
+        }
+
+        float varianzX = sumQuadratX / ghosts.Count;
+        float varianzY = sumQuadratY / ghosts.Count;
         
-        
-        if (meanX + meanY < 1) {
+        Debug.Log("AbbruchWert: " + varianzX + varianzY);
+        if (varianzX + varianzY < 1) {
             return true;
         }
 
