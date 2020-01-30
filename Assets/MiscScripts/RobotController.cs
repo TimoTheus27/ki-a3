@@ -124,6 +124,7 @@ public class RobotController : MonoBehaviour {
     }
 
     void OnCollisionEnter(Collision col) {
+        Debug.Log("COLLISION!");
         float ratioOfMovement = Vector3.Distance(transform.position, startingPosition) / desiredDistance;
         float elapsedTime = Time.time - timeOfStart;
         timeToEnd = timeOfStart + elapsedTime / ratioOfMovement;

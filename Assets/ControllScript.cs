@@ -11,8 +11,9 @@ public class ControllScript : MonoBehaviour {
     private bool robotReady = false;
     public Transform Ghostspawner;
 
+    private int ghostAmount = 200;
     void Start() {
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < ghostAmount; i++) {
             Ghostspawner.position = new Vector3(Random.Range(-49.0f, 49.0f), 0.5f, Random.Range(-100.0f, 100.0f));
             CreateGhost(Ghostspawner);
         }
@@ -20,26 +21,29 @@ public class ControllScript : MonoBehaviour {
 
     void Update() {
         if (robotReady) {
+            Debug.Log("New Update:");
+            Debug.Log("Ghosts available: " + ghosts.Count);
             
             // move both
             GenerateRandomCommand();
 
-            // töte alle ghosts out of map
-            // KillOutOfMapGhosts();
             
             // töte schlechte ghosts
-            ParticleFilter();
+            var particleFilter = ParticleFilter();
             
-            // add new ghosts till amount is 200
-            // FillUpGhosts(100);
+            // töte alle ghosts out of map
+            KillOutOfMapGhosts();
+            
+            // refill ghosts weighted
+            refillGhosts(particleFilter);
 
             // abbruchbedingung
             //
             // if (CheckLocations()) {
             //     Debug.Log("final!");
+            //     robot.CompareLocations(particleFilter[0].Item1.GetPosition(), particleFilter[0].Item1.GetRotation());
             //     return;
             // }
-            // robot.CompareLocations(ghosts[0].GetPosition(), ghosts[0].GetRotation());
             // Debug.Log(robot.Scan());
             
             robotReady = false;
@@ -91,68 +95,59 @@ public class ControllScript : MonoBehaviour {
         }
     }
 
-    private void ParticleFilter() {
+    private List<Tuple<GhostController, float>> ParticleFilter() {
+        
+        // build list of wheightedGhosts
         List<Tuple<GhostController, float>> wheightedGhots = new List<Tuple<GhostController, float>>();
-        
-        
+        foreach (var ghost in ghosts) {
+            float distanceGhost = ghost.GetDistance();
+            float distance = Math.Abs(robot.Scan() - distanceGhost);
+            // Debug.Log("MAX: " + max);
+            // Debug.Log("DISTANCE: " + distance);
+            wheightedGhots.Add(new Tuple<GhostController, float>(ghost, distance));
+        }
+
+        //calculate mean
         List<float> differences = new List<float>();
         foreach (var ghost in ghosts) {
             float distanceGhost = ghost.GetDistance();
-            if (distanceGhost > 200) {
-                distanceGhost = 200;
-            }
-            Debug.Log("Ghost: " + distanceGhost);
-            Debug.Log("Robot: " + robot.Scan());
-            Debug.Log("Distance: " + Mathf.Abs(distanceGhost - robot.Scan()));
-            differences.Add(Mathf.Abs(distanceGhost - robot.Scan()));
+            // Debug.Log("Ghost: " + distanceGhost);
+            // Debug.Log("Robot: " + robot.Scan());
+            // Debug.Log("Distance: " + Mathf.Abs(distanceGhost - robot.Scan()));
+            differences.Add( Math.Abs(robot.Scan() - distanceGhost));
         }
+        float mean = differences.Sum() / ghostAmount;
         
-        float max = differences.Max();
-        float mean = differences.Sum() / this.ghosts.Count;
-
-        // Debug.Log(max);
+        // kill all ghosts with differences in distance over mean
         foreach (var ghost in ghosts) {
-            float distance = Mathf.Abs(ghost.GetDistance() - robot.Scan());
-            // Debug.Log("MAX: " + max);
-            // Debug.Log("DISTANCE: " + distance);
-            float scaledMax = distance / max * 100;
-            // Debug.Log("SCALEDMAX: " + scaledMax);
-            wheightedGhots.Add(new Tuple<GhostController, float>(ghost, scaledMax));
-        }
-        
-        foreach (var ghost in ghosts) {
-            float differenceToRobotDistance = Mathf.Abs(ghost.GetDistance() - robot.Scan());
-            if (differenceToRobotDistance > mean) {
+            float distanceGhost = ghost.GetDistance();
+            var distance = Math.Abs(robot.Scan() - distanceGhost);
+            if (distance > mean) {
                 Destroy(ghost);
             }
         }
-        
-        KillOutOfMapGhosts();
-        
-        wheightedGhots.Sort((x, y) => x.Item2.CompareTo(y.Item2));
 
+        // sort top ghosts to start of array
+        // Debug.Log("beforeSort: " + wheightedGhots[0]);
+        wheightedGhots.Sort((x, y) => x.Item2.CompareTo(y.Item2));
+        // Debug.Log("afterSort: " + wheightedGhots[0]);
+
+        return wheightedGhots;
+    }
+
+    private void refillGhosts(List<Tuple<GhostController, float>> fillUpGhosts) {
         int ghostsCount = ghosts.Count;
-        int amountOfFillUpGhosts = 100 - ghostsCount;
+        // Debug.Log("ghostCount: " + ghostsCount);
+        int amountOfFillUpGhosts = ghostAmount - ghostsCount;
+        // Debug.Log("amountOfFillUpGhosts: " + amountOfFillUpGhosts);
         for (int i = 0; i < amountOfFillUpGhosts; i++) {
-            float x = wheightedGhots[amountOfFillUpGhosts - i].Item1.GetPosition().x;
-            float z = wheightedGhots[amountOfFillUpGhosts - i].Item1.GetPosition().z;
-            
-            Ghostspawner.position = new Vector3(Random.Range(x - 2 , x + 2), 0.5f, Random.Range(z - 2, 2 + 2));
+            float x = fillUpGhosts[i].Item1.GetPosition().x;
+            float z = fillUpGhosts[i].Item1.GetPosition().z;
+            Ghostspawner.position = new Vector3(Random.Range(x - .5f , x + .5f), 0.5f, Random.Range(z - 1f, z + 1f));
             CreateGhost(Ghostspawner);        
         }
     }
-
-    private void FillUpGhosts(int ghostAmount) {
-        int ghostsCount = ghosts.Count;
-        Debug.Log("GhostCount after killing: " + ghostsCount);
-
-        int amountOfFillUpGhosts = ghostAmount - ghostsCount;
-        for (int i = 0; i < amountOfFillUpGhosts; i++) {
-            Ghostspawner.position = new Vector3(Random.Range(-49.0f, 49.0f), 0.5f, Random.Range(-100.0f, 100.0f));
-            CreateGhost(Ghostspawner);
-        }
-    }
-
+    
     private Boolean CheckLocations() {
         float sumX = 0;
         float sumZ = 0;
