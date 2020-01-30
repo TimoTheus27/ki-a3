@@ -12,7 +12,7 @@ public class ControllScript : MonoBehaviour {
     public Transform Ghostspawner;
 
     void Start() {
-        for (int i = 0; i < 200; i++) {
+        for (int i = 0; i < 100; i++) {
             Ghostspawner.position = new Vector3(Random.Range(-49.0f, 49.0f), 0.5f, Random.Range(-100.0f, 100.0f));
             CreateGhost(Ghostspawner);
         }
@@ -20,21 +20,19 @@ public class ControllScript : MonoBehaviour {
 
     void Update() {
         if (robotReady) {
-            foreach (GhostController ghost in ghosts) {
-                ghost.Move(2);
-                ghost.Rotate(Random.value * 90);
-            }
             
+            // move both
             GenerateRandomCommand();
+            GenerateRandomGhostCommand();
 
             // töte alle ghosts out of map
             KillOutOfMapGhosts();
             
             // töte schlechte ghosts
-            KillBadGhosts();
+            ParticleFilter();
             
             // add new ghosts till amount is 200
-            FillUpGhosts();
+            FillUpGhosts(100);
 
             // abbruchbedingung
             if (CheckLocations()) {
@@ -44,7 +42,6 @@ public class ControllScript : MonoBehaviour {
             // robot.CompareLocations(ghosts[0].GetPosition(), ghosts[0].GetRotation());
             // Debug.Log(robot.Scan());
             
-            GenerateRandomCommand();
             robotReady = false;
         }
     }
@@ -60,10 +57,34 @@ public class ControllScript : MonoBehaviour {
                 return;
             case 2:
                 robot.Move(Random.value * 10, robot.MaxBackward);
-                return;
-            default:
                 robot.Rotate((Random.value - 0.5f) * 180);
                 return;
+            default:
+                robot.Move(Random.value * 10, robot.MaxBackward);
+                robot.Rotate((Random.value - 0.5f) * 180);
+                return;
+        }
+    }
+    
+    private void GenerateRandomGhostCommand() {
+        foreach (var ghost in ghosts) {
+            int command = (int) (Random.value * 3f);
+            switch (command) {
+                case 0:
+                    ghost.Move(Random.value * 10);
+                    return;
+                case 1:
+                    ghost.Rotate((Random.value - 0.5f) * 180f);
+                    return;
+                case 2:
+                    ghost.Move(Random.value * 10);
+                    ghost.Rotate((Random.value - 0.5f) * 180);
+                    return;
+                default:
+                    ghost.Rotate((Random.value - 0.5f) * 180);
+                    ghost.Move(Random.value * 10);
+                    return;
+            }
         }
     }
 
@@ -74,13 +95,11 @@ public class ControllScript : MonoBehaviour {
             if (x < -48.6f || x > 48.6f || z < -105f || z > 105f) {
                 //Debug.Log("Killing ghostie--- X : "+x+" Z : "+z);
                 Destroy(ghost);
-                Ghostspawner.position = new Vector3(Random.Range(-49.0f, 49.0f), 0.5f, Random.Range(-100.0f, 100.0f));
-                CreateGhost(Ghostspawner);
             }
         }
     }
 
-    private void KillBadGhosts() {
+    private void ParticleFilter() {
         List<float> differences = new List<float>();
         foreach (var ghost in ghosts) {
             differences.Add(Mathf.Abs(ghost.GetDistance() - robot.Scan()));
@@ -96,11 +115,11 @@ public class ControllScript : MonoBehaviour {
         }
     }
 
-    private void FillUpGhosts() {
+    private void FillUpGhosts(int ghostAmount) {
         int ghostsCount = ghosts.Count;
         Debug.Log("GhostCount after killing: " + ghostsCount);
 
-        int amountOfFillUpGhosts = 200 - ghostsCount;
+        int amountOfFillUpGhosts = ghostAmount - ghostsCount;
         for (int i = 0; i < amountOfFillUpGhosts; i++) {
             Ghostspawner.position = new Vector3(Random.Range(-49.0f, 49.0f), 0.5f, Random.Range(-100.0f, 100.0f));
             CreateGhost(Ghostspawner);
@@ -108,10 +127,15 @@ public class ControllScript : MonoBehaviour {
     }
 
     private Boolean CheckLocations() {
-        List<float> locationComparisons = new List<float>();
-        
+        float sumX = 0;
+        float sumY = 0;
+        foreach (var ghost in ghosts) {
+            sumX += ghost.GetPosition().x;
+            sumY += ghost.GetPosition().y;
+        }
 
-        if (locationComparisons.Sum() < 30) {
+        Debug.Log("AbbruchWert: " + sumX + sumY);
+        if (sumX + sumY < 10) {
             return true;
         }
 
