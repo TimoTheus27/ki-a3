@@ -7,14 +7,19 @@ using Random = UnityEngine.Random;
 
 public class ControllScript : MonoBehaviour {
     private List<GhostController> ghosts;
+    private List<Tuple<GhostController, float>> wheightedGhots;
+    
     private RobotController robot;
     private bool robotReady = false;
+    
     public Transform Ghostspawner;
-
-    private int ghostAmount = 200;
+    
+    private int ghostAmount = 3000;
+    
     void Start() {
         for (int i = 0; i < ghostAmount; i++) {
             Ghostspawner.position = new Vector3(Random.Range(-49.0f, 49.0f), 0.5f, Random.Range(-100.0f, 100.0f));
+            Ghostspawner.Rotate(0.0f, Random.Range(0.0f, 360.0f), 0.0f);
             CreateGhost(Ghostspawner);
         }
     }
@@ -35,8 +40,8 @@ public class ControllScript : MonoBehaviour {
             KillOutOfMapGhosts();
             
             // refill ghosts weighted
-            refillGhosts(particleFilter);
-
+            // refillGhosts(particleFilter);
+                refillGhosts2(particleFilter);
             // abbruchbedingung
             //
             if (CheckLocations()) {
@@ -54,9 +59,9 @@ public class ControllScript : MonoBehaviour {
         int command = (int) (Random.value * 3f);
         switch (command) {
             case 0:
-                robot.Move(Random.value * 10, robot.MaxForward);
+                robot.Move(Random.value * 2, robot.MaxForward);
                 foreach (var ghost in ghosts) {
-                    ghost.Move(Random.value * 10);
+                    ghost.Move(Random.value * 2);
                 }  
                 return;
             case 1:
@@ -66,19 +71,19 @@ public class ControllScript : MonoBehaviour {
                 }  
                 return;
             case 2:
-                robot.Move(Random.value * 10, robot.MaxBackward);
+                robot.Move(Random.value * 2, robot.MaxBackward);
                 robot.Rotate((Random.value - 0.5f) * 180);
                 foreach (var ghost in ghosts) {
-                    ghost.Move(Random.value * 10);
+                    ghost.Move(Random.value * 2);
                     ghost.Rotate((Random.value - 0.5f) * 180);
                 }  
                 return;
             default:
                 robot.Rotate((Random.value - 0.5f) * 180);
-                robot.Move(Random.value * 10, robot.MaxBackward);
+                robot.Move(Random.value * 2, robot.MaxBackward);
                 foreach (var ghost in ghosts) {
                     ghost.Rotate((Random.value - 0.5f) * 180);
-                    ghost.Move(Random.value * 10);
+                    ghost.Move(Random.value * 2);
                 } 
                 return;
         }
@@ -96,12 +101,19 @@ public class ControllScript : MonoBehaviour {
     }
 
     private List<Tuple<GhostController, float>> ParticleFilter() {
+
+        float scanSum = 0;
+        for (int i = 0; i < 500; i++) {
+            scanSum += robot.Scan();
+        }
+
+        float scanMean = scanSum / 500; 
         
         // build list of wheightedGhosts
         List<Tuple<GhostController, float>> wheightedGhots = new List<Tuple<GhostController, float>>();
         foreach (var ghost in ghosts) {
             float distanceGhost = ghost.GetDistance();
-            float distance = Math.Abs(robot.Scan() - distanceGhost);
+            float distance = Math.Abs(scanMean - distanceGhost);
             // Debug.Log("MAX: " + max);
             // Debug.Log("DISTANCE: " + distance);
             wheightedGhots.Add(new Tuple<GhostController, float>(ghost, distance));
@@ -114,18 +126,18 @@ public class ControllScript : MonoBehaviour {
             // Debug.Log("Ghost: " + distanceGhost);
             // Debug.Log("Robot: " + robot.Scan());
             // Debug.Log("Distance: " + Mathf.Abs(distanceGhost - robot.Scan()));
-            differences.Add( Math.Abs(robot.Scan() - distanceGhost));
+            differences.Add( Math.Abs(scanMean - distanceGhost));
         }
         float mean = differences.Sum() / ghostAmount;
         
-        // kill all ghosts with differences in distance over mean
-        foreach (var ghost in ghosts) {
-            float distanceGhost = ghost.GetDistance();
-            var distance = Math.Abs(robot.Scan() - distanceGhost);
-            if (distance > mean) {
-                Destroy(ghost);
-            }
-        }
+        // // kill all ghosts with differences in distance over mean
+        // foreach (var ghost in ghosts) {
+        //     float distanceGhost = ghost.GetDistance();
+        //     var distance = Math.Abs(scanMean - distanceGhost);
+        //     if (distance > mean) {
+        //         Destroy(ghost);
+        //     }
+        // }
 
         // sort top ghosts to start of array
         // Debug.Log("beforeSort: " + wheightedGhots[0]);
@@ -143,7 +155,32 @@ public class ControllScript : MonoBehaviour {
         for (int i = 0; i < amountOfFillUpGhosts; i++) {
             float x = fillUpGhosts[i].Item1.GetPosition().x;
             float z = fillUpGhosts[i].Item1.GetPosition().z;
+            float rotY = fillUpGhosts[i].Item1.GetRotation().y;
+            Debug.Log("ROT YYYYY: " + rotY);
             Ghostspawner.position = new Vector3(Random.Range(x - .5f , x + .5f), 0.5f, Random.Range(z - 1f, z + 1f));
+            Ghostspawner.Rotate(0.0f, Random.Range(0.0f, 360.0f), 0.0f);
+            // Ghostspawner.rotation = new Quaternion(0f, Random.Range(rotY - .1f, rotY + 1f), 0f, 1f);
+            CreateGhost(Ghostspawner);        
+        }
+    }
+    
+    private void refillGhosts2(List<Tuple<GhostController, float>> fillUpGhosts) {
+        foreach (var ghost in ghosts) {
+            Destroy(ghost);
+        }
+        
+        
+        for (int i = 0; i < ghostAmount; i++) {
+            // var ghostToGet = fillUpGhosts[i % fillUpGhosts.Count/2];
+            var ghostToGet = fillUpGhosts[i % fillUpGhosts.Count/4];
+            // var ghostToGet = fillUpGhosts[i % 50];
+            float x = ghostToGet.Item1.GetPosition().x;
+            float z = ghostToGet.Item1.GetPosition().z;
+            float rotY = ghostToGet.Item1.GetRotation().y;
+            Ghostspawner.position = new Vector3(Random.Range(x - .5f , x + .5f), 0.5f, Random.Range(z - 1f, z + 1f));
+            // Debug.Log("ROT YYYYY: " + rotY);
+            Ghostspawner.Rotate(0.0f, Random.Range(rotY - 10f, rotY + 10f), 0.0f);
+            // Ghostspawner.rotation = new Quaternion(0f, Random.Range(rotY - .1f, rotY + 1f), 0f, 1f);
             CreateGhost(Ghostspawner);        
         }
     }
